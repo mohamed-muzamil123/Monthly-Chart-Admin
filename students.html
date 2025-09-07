@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Students Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen p-6">
+
+  <!-- Header -->
+  <header class="mb-8 max-w-7xl mx-auto flex justify-between items-center gap-3 flex-wrap">
+    <h1 class="text-3xl font-extrabold text-gray-800 flex-grow">📘 Students</h1>
+    <div class="flex gap-3 flex-wrap">
+      <button id="backHomeBtn" class="px-5 py-2.5 rounded-xl bg-gray-600 text-white font-semibold shadow hover:bg-gray-700 hover:shadow-md transition">
+        ⬅️ Home
+      </button>
+      <button id="addStudentBtn" class="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-semibold shadow hover:bg-blue-700 hover:shadow-md transition">
+        ➕ Add Student
+      </button>
+      <button id="promoteStudentsBtn" class="hidden px-6 py-2.5 rounded-xl bg-amber-500 text-white font-semibold shadow hover:bg-amber-600 hover:shadow-md transition" title="Promote students by class">
+        ⬆️ Promote Students
+      </button>
+    </div>
+  </header>
+
+  <!-- Search + Container -->
+  <section class="max-w-7xl mx-auto">
+    <input
+      id="searchInput"
+      type="text"
+      placeholder="🔍 Search by Admission No, Name or Class"
+      class="w-full border border-gray-300 rounded-xl p-3 shadow-sm focus:ring-2 focus:ring-blue-500 mb-6"
+    />
+    <div id="studentsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Student cards will be dynamically inserted -->
+    </div>
+  </section>
+
+  <!-- Add/Edit Student Modal -->
+  <div 
+    id="addStudentModal"
+    class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50"
+  >
+    <form id="addStudentForm" class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md space-y-4" novalidate>
+      <h2 id="modalTitle" class="text-2xl font-bold text-gray-800 mb-2">Add Student</h2>
+
+      <input type="text" id="admissionNumber" placeholder="Admission Number" inputmode="numeric" class="input-field" />
+      <input type="text" id="studentName" placeholder="Name" class="input-field" />
+      <input type="text" id="studentClass" placeholder="Class (e.g. 7)" class="input-field" inputmode="numeric" />
+      <input type="date" id="dob" placeholder="Date of Birth" class="input-field" />
+      
+      <select id="hafizStatus" class="input-field">
+        <option value="">Select Status</option>
+        <option value="Hafiz">Hafiz</option>
+        <option value="Not-Hafiz">Not-Hafiz</option>
+      </select>
+
+      <div class="flex justify-end gap-4 pt-4">
+        <button type="button" id="closeModalBtn" class="btn-cancel">❌ Close</button>
+        <button type="submit" class="btn-submit">💾 Save</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Promote Students Modal -->
+  <div id="promoteModal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 hidden z-50">
+    <form id="promoteForm" class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full space-y-6">
+      <h2 class="text-xl font-bold text-gray-800">⬆️ Promote Students</h2>
+
+      <div>
+        <label for="fromClassSelect" class="block font-medium text-gray-700 mb-1">From Class</label>
+        <select id="fromClassSelect" required class="input-field"></select>
+      </div>
+
+      <div>
+        <label for="toClassSelect" class="block font-medium text-gray-700 mb-1">To Class</label>
+        <select id="toClassSelect" required class="input-field"></select>
+      </div>
+
+      <div class="flex justify-end gap-4 pt-2">
+        <button type="button" id="closePromoteModalBtn" class="btn-cancel">❌ Cancel</button>
+        <button type="submit" class="btn-submit">🚀 Promote</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Firebase & Logic (unchanged) -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue, remove, update } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBv1446L82JoCaHa_sbsfDh9fb3fVGM2h8",
+      authDomain: "hifz-monthly-report.firebaseapp.com",
+      databaseURL: "https://hifz-monthly-report-default-rtdb.firebaseio.com",
+      projectId: "hifz-monthly-report",
+      storageBucket: "hifz-monthly-report.firebasestorage.app",
+      messagingSenderId: "303055298705",
+      appId: "1:303055298705:web:7098446d7622e580559f30"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const studentsRef = ref(db, "students");
+
+    const studentsContainer = document.getElementById('studentsContainer');
+    const searchInput = document.getElementById('searchInput');
+    const addStudentBtn = document.getElementById('addStudentBtn');
+    const addStudentModal = document.getElementById('addStudentModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const addStudentForm = document.getElementById('addStudentForm');
+    const modalTitle = document.getElementById('modalTitle');
+    const backHomeBtn = document.getElementById('backHomeBtn');
+    const promoteStudentsBtn = document.getElementById("promoteStudentsBtn");
+    const promoteModal = document.getElementById("promoteModal");
+    const closePromoteModalBtn = document.getElementById("closePromoteModalBtn");
+    const promoteForm = document.getElementById("promoteForm");
+    const fromClassSelect = document.getElementById("fromClassSelect");
+    const toClassSelect = document.getElementById("toClassSelect");
+
+    const admissionNumberInput = document.getElementById('admissionNumber');
+    const studentNameInput = document.getElementById('studentName');
+    const studentClassInput = document.getElementById('studentClass');
+    const dobInput = document.getElementById('dob');
+    const hafizStatusInput = document.getElementById('hafizStatus');
+
+    let students = [];
+    let editingStudentId = null;
+
+    // Render student cards
+    // Render student cards
+function renderStudents(list) {
+  studentsContainer.innerHTML = '';
+  list.forEach(student => {
+    const card = document.createElement('div');
+    card.className =
+      'bg-white rounded-2xl shadow-md hover:shadow-lg transition p-5 flex flex-col justify-between border border-gray-200';
+
+    card.innerHTML = `
+      <div class="space-y-2">
+        <h3 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+          👤 ${student.name}
+        </h3>
+        <p class="text-sm text-gray-600"><span class="font-medium">Admission No:</span> ${student.admissionNumber}</p>
+        <p class="text-sm text-gray-600"><span class="font-medium">Class:</span> ${student.class}</p>
+        <p class="text-sm text-gray-600"><span class="font-medium">Status:</span> 
+          <span class="${student.hafizStatus === 'Hafiz' ? 'text-green-600 font-semibold' : 'text-gray-500'}">
+            ${student.hafizStatus}
+          </span>
+        </p>
+      </div>
+      <div class="mt-4 flex justify-between border-t pt-3">
+        <button class="editBtn px-3 py-1.5 rounded-lg bg-blue-50 text-blue-600 font-medium hover:bg-blue-100 transition text-sm" 
+          data-id="${student.admissionNumber}">
+          ✏️ Edit
+        </button>
+        <button class="delBtn px-3 py-1.5 rounded-lg bg-red-50 text-red-600 font-medium hover:bg-red-100 transition text-sm" 
+          data-id="${student.admissionNumber}">
+          🗑️ Delete
+        </button>
+      </div>
+    `;
+    studentsContainer.appendChild(card);
+  });
+
+  togglePromoteButton();
+
+  // Attach event listeners for Edit and Delete
+  document.querySelectorAll('.delBtn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = e.target.dataset.id;
+      if (confirm("Are you sure you want to delete this student? All history will be deleted.")) {
+        const updates = {};
+        updates[`students/${id}`] = null;
+        updates[`improvements/${id}`] = null;
+        update(ref(db), updates)
+          .then(() => alert("Student and all improvement records deleted."))
+          .catch(err => alert("Error deleting: " + err.message));
+      }
+    });
+  });
+
+  document.querySelectorAll('.editBtn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const id = e.target.dataset.id;
+      openEditModal(id);
+    });
+  });
+}
+
+
+    function togglePromoteButton() {
+      if (students.length > 0) {
+        promoteStudentsBtn.classList.remove("hidden");
+      } else {
+        promoteStudentsBtn.classList.add("hidden");
+      }
+    }
+
+    // Fetch students live
+    onValue(studentsRef, snapshot => {
+      const data = snapshot.val();
+      students = data ? Object.values(data) : [];
+      renderStudents(students);
+    });
+
+    // Search filter
+    searchInput.addEventListener('input', () => {
+      const keyword = searchInput.value.toLowerCase();
+      const filtered = students.filter(s =>
+        s.admissionNumber.toLowerCase().includes(keyword) ||
+        s.name.toLowerCase().includes(keyword) ||
+        s.class.toLowerCase().includes(keyword));
+      renderStudents(filtered);
+    });
+
+    // Show add student modal
+    addStudentBtn.addEventListener('click', () => {
+      editingStudentId = null;
+      modalTitle.textContent = 'Add Student';
+      addStudentForm.reset();
+      admissionNumberInput.disabled = false;
+      addStudentModal.classList.remove('hidden');
+    });
+
+    // Close add/edit modal
+    closeModalBtn.addEventListener('click', () => {
+      addStudentModal.classList.add('hidden');
+      addStudentForm.reset();
+      editingStudentId = null;
+      admissionNumberInput.disabled = false;
+    });
+
+    // Back to home
+    backHomeBtn.addEventListener('click', () => {
+      window.location.href = 'index.html';
+    });
+
+    // Validate form
+    function validateForm() {
+      if (
+        !admissionNumberInput.value.trim() ||
+        !studentNameInput.value.trim() ||
+        !studentClassInput.value.trim() ||
+        !dobInput.value.trim() ||
+        !hafizStatusInput.value.trim()
+      ) {
+        alert('Please fill out all fields before submitting.');
+        return false;
+      }
+      return true;
+    }
+
+    // Add/Edit submit
+    addStudentForm.addEventListener('submit', e => {
+      e.preventDefault();
+      if (!validateForm()) return;
+
+      const studentData = {
+        admissionNumber: admissionNumberInput.value.trim(),
+        name: studentNameInput.value.trim(),
+        class: studentClassInput.value.trim(),
+        dob: dobInput.value,
+        hafizStatus: hafizStatusInput.value,
+      };
+
+      if (editingStudentId) {
+        update(ref(db, `students/${editingStudentId}`), studentData).then(() => {
+          addStudentModal.classList.add('hidden');
+          addStudentForm.reset();
+          editingStudentId = null;
+          admissionNumberInput.disabled = false;
+        });
+      } else {
+        set(ref(db, `students/${studentData.admissionNumber}`), studentData).then(() => {
+          addStudentForm.reset();
+        });
+      }
+    });
+
+    // Edit modal open
+    function openEditModal(admissionNumber) {
+      const student = students.find(s => s.admissionNumber === admissionNumber);
+      if (!student) return;
+      editingStudentId = admissionNumber;
+      modalTitle.textContent = "Edit Student";
+      addStudentModal.classList.remove('hidden');
+      admissionNumberInput.value = student.admissionNumber;
+      studentNameInput.value = student.name;
+      studentClassInput.value = student.class;
+      dobInput.value = student.dob;
+      hafizStatusInput.value = student.hafizStatus;
+      admissionNumberInput.disabled = true;
+    }
+
+    // PROMOTION FEATURE BELOW
+    promoteStudentsBtn.addEventListener("click", () => {
+      populateClassSelectors();
+      promoteModal.classList.remove("hidden");
+    });
+
+    closePromoteModalBtn.addEventListener("click", () => {
+      promoteModal.classList.add("hidden");
+      promoteForm.reset();
+    });
+
+    function populateClassSelectors() {
+      const classesSet = new Set(students.map(s => s.class));
+      const classesArray = Array.from(classesSet).sort((a,b) => {
+        const nA = parseInt(a.match(/\d+/)?.[0]) || 0;
+        const nB = parseInt(b.match(/\d+/)?.[0]) || 0;
+        return nA - nB;
+      });
+      fromClassSelect.innerHTML = "";
+      toClassSelect.innerHTML = "";
+      classesArray.forEach(cls => {
+        const optionFrom = document.createElement("option");
+        optionFrom.value = cls;
+        optionFrom.textContent = cls;
+        fromClassSelect.appendChild(optionFrom);
+      });
+      toClassSelect.innerHTML = '<option value="" disabled selected>Select a class</option>';
+    }
+
+    fromClassSelect.addEventListener("change", () => {
+      const fromClass = fromClassSelect.value;
+      const fromNum = parseInt(fromClass.match(/\d+/)?.[0]) || 0;
+      const classesSet = new Set(students.map(s => s.class));
+      const classesArray = Array.from(classesSet).sort((a,b) => {
+        const nA = parseInt(a.match(/\d+/)?.[0]) || 0;
+        const nB = parseInt(b.match(/\d+/)?.[0]) || 0;
+        return nA - nB;
+      });
+
+      toClassSelect.innerHTML = "";
+
+      classesArray.forEach(cls => {
+        const num = parseInt(cls.match(/\d+/)?.[0]) || 0;
+        if (num > fromNum) {
+          const option = document.createElement("option");
+          option.value = cls;
+          option.textContent = cls;
+          toClassSelect.appendChild(option);
+        }
+      });
+
+      if (toClassSelect.options.length === 0) {
+        toClassSelect.innerHTML = '<option value="" disabled>No higher classes available</option>';
+      }
+    });
+
+    promoteForm.addEventListener("submit", async e => {
+      e.preventDefault();
+      const fromClass = fromClassSelect.value;
+      const toClass = toClassSelect.value;
+      if (!fromClass || !toClass) {
+        alert("Please select both From Class and To Class.");
+        return;
+      }
+      const studentsToPromote = students.filter(s => s.class === fromClass);
+      if (studentsToPromote.length === 0) {
+        alert(`No students found in class ${fromClass} to promote.`);
+        promoteModal.classList.add("hidden");
+        promoteForm.reset();
+        return;
+      }
+      try {
+        await Promise.all(studentsToPromote.map(s =>
+          update(ref(db, `students/${s.admissionNumber}`), { class: toClass })
+        ));
+        alert(`Promoted ${studentsToPromote.length} students from ${fromClass} to ${toClass}.`);
+        promoteModal.classList.add("hidden");
+        promoteForm.reset();
+      } catch (error) {
+        alert("Error during promotion: " + error.message);
+      }
+    });
+  </script>
+
+  <!-- Reusable Input/Button Styles -->
+  <style>
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+      outline: none;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .input-field:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgb(59 130 246 / 0.25);
+    }
+    .btn-cancel {
+      background: #ef4444;
+      color: white;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-cancel:hover {
+      background: #dc2626;
+      transform: translateY(-1px);
+    }
+    .btn-submit {
+      background: #2563eb;
+      color: white;
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+    }
+    .btn-submit:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+  </style>
+</body>
+</html>

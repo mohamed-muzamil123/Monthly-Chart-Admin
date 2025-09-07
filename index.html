@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hifz Chart Management Software</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  </head>
+  <body
+    class="bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen flex items-center justify-center p-6"
+  >
+    <main
+      class="w-full max-w-2xl text-center bg-white rounded-2xl shadow-xl p-10 border border-gray-200"
+    >
+      <!-- Header -->
+      <h1 class="text-3xl md:text-4xl font-extrabold text-gray-800 mb-4">
+        Ma'din Thahfeezhul Quran College
+      </h1>
+      <p class="text-gray-500 mb-8 text-base">Hifz Chart Management Software</p>
+
+      <!-- Action Buttons -->
+      <div class="flex flex-col md:flex-row gap-6 justify-center">
+        <button
+          id="studentsBtn"
+          class="flex-1 bg-blue-600 text-white rounded-xl px-8 py-5 font-semibold shadow-md hover:bg-blue-700 hover:shadow-lg transition transform hover:-translate-y-0.5"
+          type="button"
+        >
+          📘 Students
+        </button>
+        <button
+          id="chartBtn"
+          class="flex-1 bg-green-600 text-white rounded-xl px-8 py-5 font-semibold shadow-md hover:bg-green-700 hover:shadow-lg transition transform hover:-translate-y-0.5"
+          type="button"
+        >
+          📊 Monthly Chart
+        </button>
+      </div>
+
+      <!-- Footer Note -->
+      <p class="mt-8 text-gray-500 italic text-sm">
+        Records available starting from
+        <span class="font-medium">September 2025</span>.
+      </p>
+    </main>
+
+    <script type="module">
+      // === Logic preserved ===
+      const RECORDS_START = new Date(2025, 8, 1); // Sept 2025
+      const today = new Date();
+
+      const chartBtn = document.getElementById("chartBtn");
+      if (today < RECORDS_START) {
+        chartBtn.disabled = true;
+        chartBtn.classList.add("opacity-50", "cursor-not-allowed");
+        chartBtn.title = "Monthly Chart not available before September 2025";
+      }
+
+      document.getElementById("studentsBtn").addEventListener("click", () => {
+        window.location.href = "students.html";
+      });
+
+      chartBtn.addEventListener("click", () => {
+        window.location.href = "monthly-chart.html";
+      });
+    </script>
+  </body>
+</html>

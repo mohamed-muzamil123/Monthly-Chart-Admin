@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Monthly Chart Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-50 via-white to-gray-100 min-h-screen p-6">
+
+  <!-- Header -->
+  <header class="mb-8 max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+    <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
+      📊 Monthly Chart
+    </h1>
+    <button id="backHomeBtn" class="btn flex items-center gap-1">🏠 Back Home</button>
+  </header>
+
+  <!-- Search -->
+  <section class="max-w-6xl mx-auto mb-6">
+    <input
+      id="searchInput"
+      type="text"
+      placeholder="Search students by Admission No, Name or Class"
+      class="w-full border border-gray-300 rounded-2xl px-4 py-3 shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition"
+    />
+  </section>
+
+  <!-- Students Grid -->
+  <section class="max-w-6xl mx-auto">
+    <div id="studentsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      <!-- Student cards dynamically inserted -->
+    </div>
+  </section>
+
+  <!-- Monthly Chart Modal -->
+  <div id="monthlyChartModal" class="fixed inset-0 bg-black/50 flex justify-center items-start p-6 overflow-auto hidden z-50">
+    <div class="bg-white rounded-2xl max-w-full w-full sm:max-w-4xl p-6 relative max-h-[90vh] overflow-auto shadow-2xl">
+
+      <button id="closeModalBtn" class="absolute top-4 right-4 text-3xl font-bold hover:text-red-600 cursor-pointer" aria-label="Close modal">&times;</button>
+      
+      <h2 id="modalStudentName" class="text-2xl font-bold mb-6 truncate text-gray-800"></h2>
+
+      <!-- Year & Month Selectors -->
+      <div class="flex flex-col sm:flex-row gap-4 mb-6">
+        <div class="flex-1">
+          <label for="yearSelect" class="block font-medium mb-1">Year</label>
+          <select id="yearSelect" class="input-field w-full"></select>
+        </div>
+        <div class="flex-1">
+          <label for="monthSelect" class="block font-medium mb-1">Month</label>
+          <select id="monthSelect" class="input-field w-full"></select>
+        </div>
+      </div>
+
+      <!-- Improvements Cards -->
+      <div id="improvementsSection" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6"></div>
+
+      <button id="saveImprovementsBtn" class="btn w-full sm:w-auto">💾 Save Improvements</button>
+
+      <!-- History Cards -->
+      <h3 class="mt-8 font-bold text-gray-800 mb-4">History</h3>
+      <div id="historyCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        <!-- Each history entry as a card -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBv1446L82JoCaHa_sbsfDh9fb3fVGM2h8",
+      authDomain: "hifz-monthly-report.firebaseapp.com",
+      databaseURL: "https://hifz-monthly-report-default-rtdb.firebaseio.com",
+      projectId: "hifz-monthly-report",
+      storageBucket: "hifz-monthly-report.firebasestorage.app",
+      messagingSenderId: "303055298705",
+      appId: "1:303055298705:web:7098446d7622e580559f30"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const studentsRef = ref(db, "students");
+
+    const studentsContainer = document.getElementById("studentsContainer");
+    const searchInput = document.getElementById("searchInput");
+    const monthlyChartModal = document.getElementById("monthlyChartModal");
+    const modalStudentName = document.getElementById("modalStudentName");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const yearSelect = document.getElementById("yearSelect");
+    const monthSelect = document.getElementById("monthSelect");
+    const improvementsSection = document.getElementById("improvementsSection");
+    const saveImprovementsBtn = document.getElementById("saveImprovementsBtn");
+    const historyCards = document.getElementById("historyCards");
+    const backHomeBtn = document.getElementById("backHomeBtn");
+
+    let studentsList = [];
+    let currentStudent = null;
+
+    const START_YEAR = 2025;
+    const today = new Date();
+    const CURRENT_YEAR = today.getFullYear();
+    const CURRENT_MONTH = today.getMonth();
+    const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+
+    // Fetch Students
+    onValue(studentsRef, snapshot => {
+      const data = snapshot.val();
+      studentsList = data ? Object.values(data) : [];
+      renderStudentsList(studentsList);
+    });
+
+    function renderStudentsList(students) {
+      studentsContainer.innerHTML = "";
+      students.forEach(student => {
+        const card = document.createElement("div");
+        card.className = "bg-white rounded-2xl shadow-md hover:shadow-xl transition p-6 flex flex-col justify-between border border-gray-200 cursor-pointer";
+        card.innerHTML = `
+          <div>
+            <h3 class="font-semibold text-lg truncate">👤 ${student.name}</h3>
+            <p class="text-sm truncate">Admission No: ${student.admissionNumber}</p>
+            <p class="text-sm truncate">Class: ${student.class}</p>
+          </div>
+          <span class="mt-2 inline-block px-2 py-1 text-xs font-semibold rounded-full ${student.hafizStatus==='Hafiz'?'bg-green-100 text-green-800':'bg-yellow-100 text-yellow-800'}">
+            ${student.hafizStatus}
+          </span>
+        `;
+        card.addEventListener("click", () => openMonthlyChartModal(student));
+        studentsContainer.appendChild(card);
+      });
+    }
+
+    searchInput.addEventListener("input", () => {
+      const keyword = searchInput.value.toLowerCase();
+      const filtered = studentsList.filter(s =>
+        s.name.toLowerCase().includes(keyword) ||
+        s.admissionNumber.toLowerCase().includes(keyword) ||
+        s.class.toLowerCase().includes(keyword)
+      );
+      renderStudentsList(filtered);
+    });
+
+    function populateYearSelect() {
+      yearSelect.innerHTML = "";
+      for(let y=START_YEAR; y<=CURRENT_YEAR; y++){
+        const option = document.createElement("option");
+        option.value = y;
+        option.textContent = y;
+        yearSelect.appendChild(option);
+      }
+      yearSelect.value = CURRENT_YEAR;
+    }
+
+    function populateMonthSelect() {
+      monthSelect.innerHTML = "";
+      monthNames.forEach((m,i)=>{
+        const option = document.createElement("option");
+        option.value = i;
+        option.textContent = m;
+        monthSelect.appendChild(option);
+      });
+      monthSelect.value = today.getMonth();
+    }
+
+    function renderImprovementInputs(hafizStatus) {
+      improvementsSection.innerHTML = "";
+      const labels = hafizStatus === "Hafiz" ? ["H1", "H2", "H3"] : ["1", "2", "3"];
+      const cardBg = hafizStatus === "Hafiz" ? "bg-green-50 border-green-300" : "bg-yellow-50 border-yellow-300";
+      const cardLabelColor = hafizStatus === "Hafiz" ? "text-green-700" : "text-yellow-700";
+
+      labels.forEach(label => {
+        const div = document.createElement("div");
+        div.className = `rounded-2xl shadow-md p-4 border ${cardBg} hover:shadow-lg transition flex flex-col gap-2`;
+        div.innerHTML = `
+          <label class="font-semibold ${cardLabelColor}">${label}</label>
+          <input type="text" id="improve${label}" placeholder="Enter Improvement ${label}" class="input-field" />
+        `;
+        improvementsSection.appendChild(div);
+      });
+
+      improvementsSection.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4";
+    }
+
+    function openMonthlyChartModal(student){
+      currentStudent = student;
+      modalStudentName.textContent = `${student.name} (${student.admissionNumber})`;
+      populateYearSelect();
+      populateMonthSelect();
+      renderImprovementInputs(student.hafizStatus);
+      monthlyChartModal.classList.remove("hidden");
+      loadImprovementHistory(student.admissionNumber);
+      loadImprovementsForSelected();
+    }
+
+    closeModalBtn.addEventListener("click", ()=>{
+      monthlyChartModal.classList.add("hidden");
+      clearForm();
+    });
+
+    backHomeBtn.addEventListener("click", ()=> window.location.href = "index.html");
+
+    yearSelect.addEventListener("change", loadImprovementsForSelected);
+    monthSelect.addEventListener("change", loadImprovementsForSelected);
+
+    function loadImprovementsForSelected(){
+      if(!currentStudent) return;
+      const path = `improvements/${currentStudent.admissionNumber}/${yearSelect.value}/${monthSelect.value}`;
+      onValue(ref(db,path), snapshot=>{
+        const data = snapshot.val();
+        if(data) fillImprovementInputs(data,currentStudent.hafizStatus);
+        else clearImprovementInputs();
+      }, {onlyOnce:true});
+    }
+
+    function fillImprovementInputs(data,hafizStatus){
+      const labels = hafizStatus==="Hafiz"?["H1","H2","H3"]:["1","2","3"];
+      labels.forEach(label=>{
+        const input = document.getElementById(`improve${label}`);
+        input.value = data[label] || "";
+      });
+    }
+
+    function clearImprovementInputs(){
+      improvementsSection.querySelectorAll("input").forEach(i=>i.value="");
+    }
+
+    function clearForm(){
+      clearImprovementInputs();
+      historyCards.innerHTML = "";
+      currentStudent=null;
+      yearSelect.value = CURRENT_YEAR;
+      monthSelect.value = CURRENT_MONTH;
+    }
+
+    function loadImprovementHistory(admNo){
+      onValue(ref(db, `improvements/${admNo}`), snapshot=>{
+        const data = snapshot.val();
+        historyCards.innerHTML = "";
+
+        if(!data){
+          historyCards.innerHTML = `<div class="text-gray-400 italic text-center py-8">No improvements recorded yet.</div>`;
+          return;
+        }
+
+        Object.entries(data).sort((a,b)=>b[0]-a[0]).forEach(([year, months])=>{
+          Object.entries(months).sort((a,b)=>b[0]-a[0]).forEach(([month, improvements])=>{
+            const status = improvements.status || "Not-Hafiz"; // ✅ Use saved status
+            const card = document.createElement("div");
+            card.className = "bg-white rounded-2xl p-4 shadow-md hover:shadow-lg border border-gray-200 transition";
+            card.innerHTML = `
+              <div class="flex justify-between items-center mb-2">
+                <span class="font-semibold text-gray-800">${monthNames[month]} ${year}</span>
+                <span class="text-xs font-medium ${status==='Hafiz'?'bg-green-100 text-green-800':'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded-full">
+                  ${status}
+                </span>
+              </div>
+              <ul class="list-disc pl-5 text-gray-700">
+                <li>${improvements["1"]||improvements["H1"]||""}</li>
+                <li>${improvements["2"]||improvements["H2"]||""}</li>
+                <li>${improvements["3"]||improvements["H3"]||""}</li>
+              </ul>
+            `;
+            historyCards.appendChild(card);
+          });
+        });
+      }, {onlyOnce:true});
+    }
+
+    saveImprovementsBtn.addEventListener("click", ()=>{
+      if(!currentStudent) return alert("Select a student first.");
+      const labels = currentStudent.hafizStatus==="Hafiz"?["H1","H2","H3"]:["1","2","3"];
+      let improvementsData = { status: currentStudent.hafizStatus }; // ✅ Save status at this time
+      let allEmpty=true;
+      labels.forEach(label=>{
+        const val=document.getElementById(`improve${label}`).value.trim();
+        improvementsData[label]=val;
+        if(val) allEmpty=false;
+      });
+      if(allEmpty) return alert("Enter at least one improvement.");
+      set(ref(db, `improvements/${currentStudent.admissionNumber}/${yearSelect.value}/${monthSelect.value}`), improvementsData)
+      .then(()=>{ alert("Improvements saved."); loadImprovementHistory(currentStudent.admissionNumber); })
+      .catch(err=>alert("Error: "+err.message));
+    });
+  </script>
+
+  <style>
+    .input-field {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 0.75rem;
+      border: 1px solid #d1d5db;
+      outline: none;
+      font-size: 1rem;
+      transition: all 0.2s;
+    }
+    .input-field:focus {
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
+    }
+    .btn {
+      background: #2563eb;
+      color: white;
+      border-radius: 1rem;
+      padding: 0.75rem 1.5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      background: #1d4ed8;
+      transform: translateY(-1px);
+    }
+    @media (max-width:640px){
+      #monthlyChartModal{ padding:1rem; align-items:flex-start; }
+      .improvementsSection{ grid-template-columns:1fr !important; }
+    }
+  </style>
+</body>
+</html>
