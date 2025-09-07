@@ -48,7 +48,15 @@
       <input type="text" id="admissionNumber" placeholder="Admission Number" inputmode="numeric" class="input-field" />
       <input type="text" id="studentName" placeholder="Name" class="input-field" />
       <input type="text" id="studentClass" placeholder="Class (e.g. 7)" class="input-field" inputmode="numeric" />
-      <input type="date" id="dob" placeholder="Date of Birth" class="input-field" />
+      <div>
+  <label for="dob" class="block text-gray-700 font-medium mb-1">Date of Birth</label>
+  <input 
+    type="date" 
+    id="dob" 
+    class="input-field text-gray-800 placeholder-gray-400" 
+  />
+</div>
+
       
       <select id="hafizStatus" class="input-field">
         <option value="">Select Status</option>
@@ -419,6 +427,17 @@ function renderStudents(list) {
       background: #1d4ed8;
       transform: translateY(-1px);
     }
+
+    input[type="date"]::before {
+  content: attr(placeholder);
+  color: #9ca3af; /* gray-400 */
+  margin-right: 0.5rem;
+}
+input[type="date"]:focus::before,
+input[type="date"]:valid::before {
+  content: "";
+}
+
   </style>
 </body>
 </html>
