@@ -28,9 +28,7 @@
 
   <!-- Students Grid -->
   <section class="max-w-6xl mx-auto">
-    <div id="studentsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-      <!-- Student cards dynamically inserted -->
-    </div>
+    <div id="studentsContainer" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
   </section>
 
   <!-- Monthly Chart Modal -->
@@ -60,9 +58,7 @@
 
       <!-- History Cards -->
       <h3 class="mt-8 font-bold text-gray-800 mb-4">History</h3>
-      <div id="historyCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        <!-- Each history entry as a card -->
-      </div>
+      <div id="historyCards" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4"></div>
     </div>
   </div>
 
@@ -106,7 +102,6 @@
   const CURRENT_MONTH = today.getMonth();
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
 
-  // Malayalam label map
   const labelMap = {
     "1": "പാഠം",
     "2": "5 പാഠം",
@@ -177,9 +172,7 @@
 
   function renderImprovementInputs(hafizStatus) {
     improvementsSection.innerHTML = "";
-    const labels = hafizStatus === "Hafiz"
-      ? ["H1", "H2", "H3"]
-      : ["1", "2", "3"];
+    const labels = hafizStatus === "Hafiz" ? ["H1", "H2", "H3"] : ["1", "2", "3"];
 
     const cardBg = hafizStatus === "Hafiz" ? "bg-green-50 border-green-300" : "bg-yellow-50 border-yellow-300";
     const cardLabelColor = hafizStatus === "Hafiz" ? "text-green-700" : "text-yellow-700";
@@ -190,6 +183,23 @@
       div.innerHTML = `
         <label class="font-semibold ${cardLabelColor}">${labelMap[key]}</label>
         <input type="text" id="improve${key}" placeholder="Enter ${labelMap[key]}" class="input-field" />
+      `;
+      improvementsSection.appendChild(div);
+    });
+
+    // Extra fields
+    const extraFields = [
+      { key: "TotalClasses", label: "Total Classes" },
+      { key: "Leaves", label: "Leaves" },
+      { key: "Attendance", label: "Attendance" }
+    ];
+
+    extraFields.forEach(({ key, label }) => {
+      const div = document.createElement("div");
+      div.className = "rounded-2xl shadow-md p-4 border bg-blue-50 border-blue-300 hover:shadow-lg transition flex flex-col gap-2";
+      div.innerHTML = `
+        <label class="font-semibold text-blue-700">${label}</label>
+        <input type="number" id="improve${key}" placeholder="Enter ${label}" class="input-field" />
       `;
       improvementsSection.appendChild(div);
     });
@@ -234,6 +244,10 @@
       const input = document.getElementById(`improve${key}`);
       input.value = data[key] || "";
     });
+
+    document.getElementById("improveTotalClasses").value = data.totalClasses || "";
+    document.getElementById("improveLeaves").value = data.leaves || "";
+    document.getElementById("improveAttendance").value = data.attendance || "";
   }
 
   function clearImprovementInputs(){
@@ -267,9 +281,16 @@
           let ul = "<ul class='list-disc pl-5 text-gray-700'>";
           Object.keys(improvements).forEach(k=>{
             if(k !== "status" && improvements[k]){
-              ul += `<li>${labelMap[k]}: ${improvements[k]}</li>`;
+              if(labelMap[k]){
+                ul += `<li>${labelMap[k]}: ${improvements[k]}</li>`;
+              }
             }
           });
+
+          if(improvements.totalClasses) ul += `<li>Total Classes: ${improvements.totalClasses}</li>`;
+          if(improvements.leaves) ul += `<li>Leaves: ${improvements.leaves}</li>`;
+          if(improvements.attendance) ul += `<li>Attendance: ${improvements.attendance}</li>`;
+
           ul += "</ul>";
 
           card.innerHTML = `
@@ -297,13 +318,21 @@
       improvementsData[key]=val;
       if(val) allEmpty=false;
     });
-    if(allEmpty) return alert("Enter at least one improvement.");
+
+    // extra fields
+    improvementsData.totalClasses = document.getElementById("improveTotalClasses").value.trim();
+    improvementsData.leaves = document.getElementById("improveLeaves").value.trim();
+    improvementsData.attendance = document.getElementById("improveAttendance").value.trim();
+
+    if(allEmpty && !improvementsData.totalClasses && !improvementsData.leaves && !improvementsData.attendance){
+      return alert("Enter at least one field.");
+    }
+
     set(ref(db, `improvements/${currentStudent.admissionNumber}/${yearSelect.value}/${monthSelect.value}`), improvementsData)
     .then(()=>{ alert("Improvements saved."); loadImprovementHistory(currentStudent.admissionNumber); })
     .catch(err=>alert("Error: "+err.message));
   });
 </script>
-
 
   <style>
     .input-field {
