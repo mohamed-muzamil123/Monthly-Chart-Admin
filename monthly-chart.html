@@ -10,9 +10,7 @@
 
   <!-- Header -->
   <header class="mb-8 max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
-    <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">
-      📊 Monthly Chart
-    </h1>
+    <h1 class="text-3xl font-bold text-gray-800 flex items-center gap-2">📊 Monthly Chart</h1>
     <button id="backHomeBtn" class="btn flex items-center gap-1">🏠 Back Home</button>
   </header>
 
@@ -54,6 +52,12 @@
       <!-- Improvements Cards -->
       <div id="improvementsSection" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6"></div>
 
+      <!-- Leave Dates Picker -->
+      <div class="mb-4">
+        <label class="block font-semibold text-blue-700 mb-1">Select Leave Dates</label>
+        <div id="leaveDatesContainer" class="grid grid-cols-7 gap-1"></div>
+      </div>
+
       <button id="saveImprovementsBtn" class="btn w-full sm:w-auto">💾 Save Improvements</button>
 
       <!-- History Cards -->
@@ -80,7 +84,6 @@
   const db = getDatabase(app);
 
   const studentsRef = ref(db, "students");
-
   const studentsContainer = document.getElementById("studentsContainer");
   const searchInput = document.getElementById("searchInput");
   const monthlyChartModal = document.getElementById("monthlyChartModal");
@@ -92,9 +95,11 @@
   const saveImprovementsBtn = document.getElementById("saveImprovementsBtn");
   const historyCards = document.getElementById("historyCards");
   const backHomeBtn = document.getElementById("backHomeBtn");
+  const leaveDatesContainer = document.getElementById("leaveDatesContainer");
 
   let studentsList = [];
   let currentStudent = null;
+  let selectedLeaveDates = [];
 
   const START_YEAR = 2025;
   const today = new Date();
@@ -173,7 +178,6 @@
   function renderImprovementInputs(hafizStatus) {
     improvementsSection.innerHTML = "";
     const labels = hafizStatus === "Hafiz" ? ["H1", "H2", "H3"] : ["1", "2", "3"];
-
     const cardBg = hafizStatus === "Hafiz" ? "bg-green-50 border-green-300" : "bg-yellow-50 border-yellow-300";
     const cardLabelColor = hafizStatus === "Hafiz" ? "text-green-700" : "text-yellow-700";
 
@@ -187,24 +191,58 @@
       improvementsSection.appendChild(div);
     });
 
-    // Extra fields
-    const extraFields = [
-      { key: "TotalClasses", label: "Total Classes" },
-      { key: "Leaves", label: "Leaves" },
-      { key: "Attendance", label: "Attendance" }
-    ];
-
-    extraFields.forEach(({ key, label }) => {
+    // Extra fields: TotalClasses, Leaves, Attendance
+    ["TotalClasses","Leaves","Attendance"].forEach(key=>{
       const div = document.createElement("div");
-      div.className = "rounded-2xl shadow-md p-4 border bg-blue-50 border-blue-300 hover:shadow-lg transition flex flex-col gap-2";
+      const bg = key==="Leaves"?"bg-blue-50 border-blue-300":"bg-gray-50 border-gray-300";
+      div.className = `rounded-2xl shadow-md p-4 border ${bg} hover:shadow-lg transition flex flex-col gap-2`;
       div.innerHTML = `
-        <label class="font-semibold text-blue-700">${label}</label>
-        <input type="number" id="improve${key}" placeholder="Enter ${label}" class="input-field" />
+        <label class="font-semibold ${key==="Leaves"?"text-blue-700":"text-gray-700"}">${key==="TotalClasses"?"Total Classes":key}</label>
+        <input type="${key==="Leaves"?"number":"text"}" id="improve${key}" placeholder="Enter ${key}" class="input-field" />
       `;
       improvementsSection.appendChild(div);
     });
 
-    improvementsSection.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4";
+    // Auto-calculate attendance when TotalClasses or Leaves change
+    const totalInput = document.getElementById("improveTotalClasses");
+    const leavesInput = document.getElementById("improveLeaves");
+    const attendanceInput = document.getElementById("improveAttendance");
+
+    function updateAttendance(){
+      const total = parseInt(totalInput.value) || 0;
+      const leaves = parseInt(leavesInput.value) || 0;
+      attendanceInput.value = total - leaves;
+    }
+
+    totalInput.addEventListener("input", updateAttendance);
+    leavesInput.addEventListener("input", updateAttendance);
+  }
+
+  function generateLeaveDatesCalendar(year, month, selectedDates=[]) {
+    leaveDatesContainer.innerHTML = "";
+    selectedLeaveDates = [...selectedDates];
+
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month+1, 0);
+    const totalDays = lastDay.getDate();
+
+    for(let d=1; d<=totalDays; d++){
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = d;
+      btn.className = `border rounded p-1 text-sm hover:bg-blue-100 transition ${
+        selectedLeaveDates.includes(d) ? "bg-blue-500 text-white" : "bg-white text-gray-800"
+      }`;
+      btn.addEventListener("click", ()=>{
+        if(selectedLeaveDates.includes(d)){
+          selectedLeaveDates = selectedLeaveDates.filter(x=>x!==d);
+        }else{
+          selectedLeaveDates.push(d);
+        }
+        generateLeaveDatesCalendar(year, month, selectedLeaveDates);
+      });
+      leaveDatesContainer.appendChild(btn);
+    }
   }
 
   function openMonthlyChartModal(student){
@@ -214,27 +252,43 @@
     populateMonthSelect();
     renderImprovementInputs(student.hafizStatus);
     monthlyChartModal.classList.remove("hidden");
+    selectedLeaveDates = [];
+    generateLeaveDatesCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
     loadImprovementHistory(student.admissionNumber);
     loadImprovementsForSelected();
   }
 
-  closeModalBtn.addEventListener("click", ()=>{
-    monthlyChartModal.classList.add("hidden");
-    clearForm();
-  });
-
+  closeModalBtn.addEventListener("click", ()=>{ monthlyChartModal.classList.add("hidden"); clearForm(); });
   backHomeBtn.addEventListener("click", ()=> window.location.href = "index.html");
 
-  yearSelect.addEventListener("change", loadImprovementsForSelected);
-  monthSelect.addEventListener("change", loadImprovementsForSelected);
+  yearSelect.addEventListener("change", ()=>{
+    clearImprovementInputs();
+    selectedLeaveDates=[];
+    generateLeaveDatesCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
+    loadImprovementsForSelected();
+  });
+
+  monthSelect.addEventListener("change", ()=>{
+    clearImprovementInputs();
+    selectedLeaveDates=[];
+    generateLeaveDatesCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
+    loadImprovementsForSelected();
+  });
 
   function loadImprovementsForSelected(){
     if(!currentStudent) return;
     const path = `improvements/${currentStudent.admissionNumber}/${yearSelect.value}/${monthSelect.value}`;
     onValue(ref(db,path), snapshot=>{
       const data = snapshot.val();
-      if(data) fillImprovementInputs(data,currentStudent.hafizStatus);
-      else clearImprovementInputs();
+      if(data){
+        fillImprovementInputs(data,currentStudent.hafizStatus);
+        selectedLeaveDates = data.leaveDates || [];
+        generateLeaveDatesCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value), selectedLeaveDates);
+      } else {
+        clearImprovementInputs();
+        selectedLeaveDates = [];
+        generateLeaveDatesCalendar(parseInt(yearSelect.value), parseInt(monthSelect.value));
+      }
     }, {onlyOnce:true});
   }
 
@@ -244,7 +298,6 @@
       const input = document.getElementById(`improve${key}`);
       input.value = data[key] || "";
     });
-
     document.getElementById("improveTotalClasses").value = data.totalClasses || "";
     document.getElementById("improveLeaves").value = data.leaves || "";
     document.getElementById("improveAttendance").value = data.attendance || "";
@@ -260,17 +313,15 @@
     currentStudent=null;
     yearSelect.value = CURRENT_YEAR;
     monthSelect.value = CURRENT_MONTH;
+    selectedLeaveDates = [];
+    leaveDatesContainer.innerHTML="";
   }
 
   function loadImprovementHistory(admNo){
     onValue(ref(db, `improvements/${admNo}`), snapshot=>{
       const data = snapshot.val();
       historyCards.innerHTML = "";
-
-      if(!data){
-        historyCards.innerHTML = `<div class="text-gray-400 italic text-center py-8">No improvements recorded yet.</div>`;
-        return;
-      }
+      if(!data){ historyCards.innerHTML = `<div class="text-gray-400 italic text-center py-8">No improvements recorded yet.</div>`; return; }
 
       Object.entries(data).sort((a,b)=>b[0]-a[0]).forEach(([year, months])=>{
         Object.entries(months).sort((a,b)=>b[0]-a[0]).forEach(([month, improvements])=>{
@@ -280,25 +331,18 @@
 
           let ul = "<ul class='list-disc pl-5 text-gray-700'>";
           Object.keys(improvements).forEach(k=>{
-            if(k !== "status" && improvements[k]){
-              if(labelMap[k]){
-                ul += `<li>${labelMap[k]}: ${improvements[k]}</li>`;
-              }
-            }
+            if(k!=="status" && k!=="leaveDates" && improvements[k]){ if(labelMap[k]) ul += `<li>${labelMap[k]}: ${improvements[k]}</li>`; }
           });
-
           if(improvements.totalClasses) ul += `<li>Total Classes: ${improvements.totalClasses}</li>`;
           if(improvements.leaves) ul += `<li>Leaves: ${improvements.leaves}</li>`;
           if(improvements.attendance) ul += `<li>Attendance: ${improvements.attendance}</li>`;
-
+          if(improvements.leaveDates && improvements.leaveDates.length>0) ul += `<li>Leave Dates: ${improvements.leaveDates.join(", ")}</li>`;
           ul += "</ul>";
 
           card.innerHTML = `
             <div class="flex justify-between items-center mb-2">
               <span class="font-semibold text-gray-800">${monthNames[month]} ${year}</span>
-              <span class="text-xs font-medium ${status==='Hafiz'?'bg-green-100 text-green-800':'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded-full">
-                ${status}
-              </span>
+              <span class="text-xs font-medium ${status==='Hafiz'?'bg-green-100 text-green-800':'bg-yellow-100 text-yellow-800'} px-2 py-1 rounded-full">${status}</span>
             </div>
             ${ul}
           `;
@@ -319,52 +363,29 @@
       if(val) allEmpty=false;
     });
 
-    // extra fields
+    // Extra fields
     improvementsData.totalClasses = document.getElementById("improveTotalClasses").value.trim();
     improvementsData.leaves = document.getElementById("improveLeaves").value.trim();
     improvementsData.attendance = document.getElementById("improveAttendance").value.trim();
+    improvementsData.leaveDates = [...selectedLeaveDates].sort((a,b)=>a-b);
 
-    if(allEmpty && !improvementsData.totalClasses && !improvementsData.leaves && !improvementsData.attendance){
+    if(allEmpty && !improvementsData.totalClasses && !improvementsData.leaves && !improvementsData.attendance && improvementsData.leaveDates.length===0){
       return alert("Enter at least one field.");
     }
 
     set(ref(db, `improvements/${currentStudent.admissionNumber}/${yearSelect.value}/${monthSelect.value}`), improvementsData)
-    .then(()=>{ alert("Improvements saved."); loadImprovementHistory(currentStudent.admissionNumber); })
-    .catch(err=>alert("Error: "+err.message));
+      .then(()=>{ alert("Improvements saved."); loadImprovementHistory(currentStudent.admissionNumber); })
+      .catch(err=>alert("Error: "+err.message));
   });
+
 </script>
 
-  <style>
-    .input-field {
-      width: 100%;
-      padding: 12px 14px;
-      border-radius: 0.75rem;
-      border: 1px solid #d1d5db;
-      outline: none;
-      font-size: 1rem;
-      transition: all 0.2s;
-    }
-    .input-field:focus {
-      border-color: #2563eb;
-      box-shadow: 0 0 0 3px rgb(37 99 235 / 0.2);
-    }
-    .btn {
-      background: #2563eb;
-      color: white;
-      border-radius: 1rem;
-      padding: 0.75rem 1.5rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .btn:hover {
-      background: #1d4ed8;
-      transform: translateY(-1px);
-    }
-    @media (max-width:640px){
-      #monthlyChartModal{ padding:1rem; align-items:flex-start; }
-      .improvementsSection{ grid-template-columns:1fr !important; }
-    }
-  </style>
+<style>
+  .input-field { width: 100%; padding: 12px 14px; border-radius: 0.75rem; border: 1px solid #d1d5db; outline: none; font-size: 1rem; transition: all 0.2s; }
+  .input-field:focus { border-color: #2563eb; box-shadow: 0 0 0 3px rgb(37 99 235 / 0.3); }
+  .btn { padding: 0.75rem 1.25rem; background-color: #2563eb; color: white; border-radius: 0.75rem; font-weight: 600; transition: all 0.2s; cursor: pointer; }
+  .btn:hover { background-color: #1e40af; }
+</style>
+
 </body>
 </html>
